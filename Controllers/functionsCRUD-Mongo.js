@@ -61,7 +61,7 @@ const readOneDocument = async (collection, ...rest) => {
             arrayDocuments = await Mensaje.find({},{_id:0, __v:0});
             break;
         case 'usuarios':
-            arrayDocuments = await Usuario.findOne({username:rest[0]},{__v:0});
+            arrayDocuments = await Usuario.findOne({id:rest[0]},{__v:0});
             break;
         default:
             break;

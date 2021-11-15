@@ -8,13 +8,20 @@ const io = require('socket.io')(http);
 const session = require('express-session');
 const MongoStore = require('connect-mongo');
 const passport = require('passport');
-const LocalStrategy = require('passport-local').Strategy;
-const { obtenerUsuarioId, passwordValida, obtenerUsuario } = require('./utils/util');
+const { obtenerUsuarioId, obtenerUsuario } = require('./utils/util');
 const advancedOptions = {useNewUrlParser: true, useUnifiedTopology: true};
 const FacebookStrategy = require('passport-facebook').Strategy;
+const https = require('https');
+const fs = require('fs'); 
+const httpsOptions = {
+    key: fs.readFileSync('./sslcert/cert.key'),
+    cert: fs.readFileSync('./sslcert/cert.pem')
+}
+
 
 const objProductos = [];
 const objMensajes = [];
+const PORT = 8443;
 
 app.use(express.static('./public'));
 app.use(express.json());
@@ -47,20 +54,33 @@ app.engine(
 app.set('views', './views'); // especifica el directorio de vistas
 app.set('view engine', 'hbs'); // registra el motor de plantillas
 
-http.listen(3030, async () => {
-    
 
-    let productosMongo = await readDocuments('productos');
-    productosMongo.forEach(prod => {
-        objProductos.push(prod);
-    });
+const server = https.createServer(httpsOptions, app)
+    .listen(PORT, async () => {
+        let productosMongo = await readDocuments('productos');
+        productosMongo.forEach(prod => {
+            objProductos.push(prod);
+        });
 
-    let mensajesMongo = await readDocuments('mensajes');
-    mensajesMongo.forEach(mens => {
-        objMensajes.push(mens);
-    });
+        let mensajesMongo = await readDocuments('mensajes');
+        mensajesMongo.forEach(mens => {
+            objMensajes.push(mens);
+        });
 
-    console.log('escuchando desde servidor. Puerto: 3030')} )
+        console.log(mensajesMongo);
+
+        console.log(`Servidor escuchando https://localhost:${PORT}/`);
+    })
+server.on('error', error=>console.log('Error en servidor', error));
+
+passport.serializeUser((user, done)=>{
+    done(null, user.id);
+});
+
+passport.deserializeUser(async(id, done)=>{
+    let user = await obtenerUsuarioId(id);
+    done(null, user);
+}); 
 
 
 io.on ('connection', async (socket) => {
@@ -87,55 +107,47 @@ io.on ('connection', async (socket) => {
 
 });
 
-passport.use('login', new LocalStrategy({
-    passReqToCallback: true
-}, 
-    async function (req, username, password, done) {
-        let usuario = await obtenerUsuario(username);
-        if (usuario == undefined) {
-            return done(null, false, console.log(username, 'usuario no existe'));
-        } else {
-            if (passwordValida(usuario, password)) {
-                return done(null, usuario)  
-            } else {
-                return done(null, false, console.log(username, 'password errónea'));
-            }
-        }
-    })
-);
+passport.use(new FacebookStrategy({
+    clientID: '863805684308314',
+    clientSecret: '3cb9f9791fe20ac81d3305c228bd77df',
+    callbackURL: `https://localhost:${PORT}/auth/facebook/datos`,
+    profileFields: ['id', 'displayName', 'email', 'picture']
+  },
+  async function(accessToken, refreshToken, profile, cb) {
+      let usuario = await obtenerUsuario(profile.id);
+      if (usuario == null) {
+        let usuario = {
+            id: profile.id,
+            username: profile.displayName,
+            picture: profile._json.picture
 
-passport.use('signup', new LocalStrategy({
-    passReqToCallback: true
-},
-    async function(req, username, password, done) {
-        let usuario = await readOneDocument('usuarios',username);
-        if (usuario != null){
-            return done(null, false, console.log(username, 'Usuario ya existe'));
-        } else {
-            let user = {
-                username: username,
-                password: password
-            }
-            await insertDocuments(user,'usuarios');
-            let usuarioMongo = await readOneDocument('usuarios',username);
-            console.log(user,usuarioMongo._id.toString());
-            return done(null, usuarioMongo);
-        }
-    }
+        };
+        await insertDocuments(usuario,'usuarios');
+        console.log('nuevo', usuario);
+        cb(null,usuario);
+      } else {
+          console.log('encontre: ', usuario);
+          cb(null,usuario);
+      }
+
+  }
 ));
 
-passport.serializeUser((user, done)=>{
-    done(null, user._id);
-});
 
-passport.deserializeUser(async(id, done)=>{
-    let user = await obtenerUsuarioId(id);
-    done(null, user);
-});
+app.get('/auth/facebook',
+  passport.authenticate('facebook'));
+
+app.get('/auth/facebook/datos',
+  passport.authenticate('facebook', { failureRedirect: '/failLogin' }),
+  function(req, res) {
+    // Successful authentication, redirect home.
+    res.redirect('/');
+  });
 
 app.get('/', checkAuthentication, routes.getInicio);
 app.get('/home', (req,res) => {
-    res.render('products', { products: objProductos, userName: req.user.username});
+    console.log(objProductos);
+    res.render('products', { products: objProductos, userName: req.user.username, picture: req.user.picture.data.url});
 });
 
 app.get('/register', routes.getRegister);
@@ -152,6 +164,6 @@ function checkAuthentication(req, res, next){
     if (req.isAuthenticated()){
         next();
     } else {
-        res.redirect('/login');
+        res.redirect('/auth/facebook');
     }
 }

@@ -3,7 +3,7 @@ const {connectDB, closeDB} = require('../MongoDB/conecctionMongo');
 
 async function obtenerUsuarioId(id){
     await connectDB();
-    let usuario = await Usuario.findById(id,{__v:0});
+    let usuario = await Usuario.findOne({id: id},{__v:0});
     // console.log(usuario);
     if (usuario == null) {
         await closeDB();
@@ -15,10 +15,10 @@ async function obtenerUsuarioId(id){
     
 }
 
-async function obtenerUsuario(username){
+async function obtenerUsuario(id){
     await connectDB();
     // console.log('username: ',username);
-    let user = await Usuario.findOne({username: username},{__v:0});
+    let user = await Usuario.findOne({id: id},{__v:0});
     // console.log(user);
     if (user == null) {
         await closeDB();
@@ -29,13 +29,7 @@ async function obtenerUsuario(username){
     }
 }
 
-function passwordValida(usuario, password){
-    console.log(usuario.password, password);
-    return usuario.password == password;
-}
-
 module.exports = {
     obtenerUsuarioId,
-    passwordValida,
     obtenerUsuario
 }
