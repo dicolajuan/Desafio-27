@@ -1,6 +1,3 @@
-//import { Archivo } from './Archivo.js';
-
-const {normalizar, desnormalizar} = require('./normalizador');
 const { insertDocuments, readDocuments, readOneDocument } = require('./Controllers/functionsCRUD-Mongo.js');
 const routes = require('./routes');
 const express = require('express');
@@ -14,10 +11,10 @@ const passport = require('passport');
 const LocalStrategy = require('passport-local').Strategy;
 const { obtenerUsuarioId, passwordValida, obtenerUsuario } = require('./utils/util');
 const advancedOptions = {useNewUrlParser: true, useUnifiedTopology: true};
+const FacebookStrategy = require('passport-facebook').Strategy;
 
 const objProductos = [];
 const objMensajes = [];
-const usuarios = [];
 
 app.use(express.static('./public'));
 app.use(express.json());
@@ -73,7 +70,6 @@ io.on ('connection', async (socket) => {
     socket.on('newProduct', async (data) => {
         insertDocuments(data,'productos');
         objProductos.push(data);
-        normalizar(data);
         io.sockets.emit('productCatalog', { products: objProductos});
     });
 
@@ -86,7 +82,6 @@ io.on ('connection', async (socket) => {
     socket.on('nuevo-mensaje', async (data)=>{
         insertDocuments(data,'mensaje');
         objMensajes.push(data);
-        normalizar(data);
         io.sockets.emit('mensajes', objMensajes);
     });
 
