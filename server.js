@@ -67,7 +67,7 @@ const server = https.createServer(httpsOptions, app)
             objMensajes.push(mens);
         });
 
-        console.log(mensajesMongo);
+        console.log(objMensajes);
 
         console.log(`Servidor escuchando https://localhost:${PORT}/`);
     })
@@ -93,14 +93,9 @@ io.on ('connection', async (socket) => {
         io.sockets.emit('productCatalog', { products: objProductos});
     });
 
-    socket.on('login', async (data) => {
-        console.log('object');
-        window.location.href = "/listPoducts";
-    });
-
     socket.emit('mensajes', objMensajes);
     socket.on('nuevo-mensaje', async (data)=>{
-        insertDocuments(data,'mensaje');
+        insertDocuments(data,'mensajes');
         objMensajes.push(data);
         io.sockets.emit('mensajes', objMensajes);
     });
@@ -145,8 +140,8 @@ app.get('/auth/facebook/datos',
   });
 
 app.get('/', checkAuthentication, routes.getInicio);
-app.get('/home', (req,res) => {
-    console.log(objProductos);
+app.get('/home', checkAuthentication, (req,res) => {
+    // console.log(objProductos);
     res.render('products', { products: objProductos, userName: req.user.username, picture: req.user.picture.data.url});
 });
 

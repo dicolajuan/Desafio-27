@@ -6,7 +6,7 @@ const connectDB = async () =>{
         { 
           useNewUrlParser: true,
           useUnifiedTopology: true,
-          serverSelectionTimeoutMS: 1000
+          serverSelectionTimeoutMS: 1000000
         })
     console.log('Conectado a la base de datos...');
 }

@@ -4,7 +4,6 @@ function getInicio(req,res){
 }
 
 function getHome(){
-    console.log(req.user);
     res.render('products', { products: objProductos, userName: req.user.username});
 }
 
